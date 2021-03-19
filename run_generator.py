@@ -16,24 +16,11 @@ import pretrained_networks
 
 #----------------------------------------------------------------------------
 
-def generate_images(network_pkl, seed, truncation_psi):
+def generate_images(network_pkl, seeds, truncation_psi):
     
-    seed=_chk0x(seed)
-    print(seed)
+    seeds = seeds.split(',')   
+    
     print('Loading networks from "%s"...' % network_pkl)
-    print('Generating image for seed %s  ...' % (seed))
-    
-    
-    #splitl = str(np.array_split(arange,8);
-    splitl = [seed[i:i+8] for i in range(0, len(seed), 8)]
-    print(splitl)
-    
-    
-     
-    iarr= [int(splitl[i], 16) for i in range(0, len(splitl))]
-    
-    
-    
     _G, _D, Gs = pretrained_networks.load_networks(network_pkl)
     noise_vars = [var for name, var in Gs.components.synthesis.vars.items() if name.startswith('noise')]
 
@@ -43,65 +30,28 @@ def generate_images(network_pkl, seed, truncation_psi):
     if truncation_psi is not None:
         Gs_kwargs.truncation_psi = truncation_psi
 
-
-    print('Generating image for seed  ...')
-    print(iarr)
     
-    rnd = np.random.RandomState(iarr)
-    z = rnd.randn(1, *Gs.input_shape[1:]) # [minibatch, component]
-    tflib.set_vars({var: rnd.randn(*var.shape.as_list()) for var in noise_vars}) # [height, width]
-    images = Gs.run(z, None, **Gs_kwargs) # [minibatch, height, width, channel]
-    PIL.Image.fromarray(images[0], 'RGB').save(dnnlib.make_run_dir_path('0x%s.png' % seed))
+    for seed_idx, seed in enumerate(seeds):
+
+        seed=_chk0x(seed)
+        seedstr=seed
+        seed = seed.lstrip('0')
+        print(seed)
+        
+        print('Generating image for seed 0x%s (%d/%d) ...' % (seed, seed_idx+1, len(seeds)))
+        splitl = [seed[i:i+8] for i in range(0, len(seed), 8)] 
+        iarr= [int(splitl[i], 16) for i in range(0, len(splitl))]    
+    
+        rnd = np.random.RandomState(iarr)
+        z = rnd.randn(1, *Gs.input_shape[1:]) # [minibatch, component]
+        tflib.set_vars({var: rnd.randn(*var.shape.as_list()) for var in noise_vars}) # [height, width]
+        images = Gs.run(z, None, **Gs_kwargs) # [minibatch, height, width, channel]
+        PIL.Image.fromarray(images[0], 'RGB').save(dnnlib.make_run_dir_path('0x%s.png' % seedstr))
 
 #----------------------------------------------------------------------------
 
 def style_mixing_example(network_pkl, row_seeds, col_seeds, truncation_psi, col_styles, minibatch_size=4):
-    print('Loading networks from "%s"...' % network_pkl)
-    _G, _D, Gs = pretrained_networks.load_networks(network_pkl)
-    w_avg = Gs.get_var('dlatent_avg') # [component]
-
-    Gs_syn_kwargs = dnnlib.EasyDict()
-    Gs_syn_kwargs.output_transform = dict(func=tflib.convert_images_to_uint8, nchw_to_nhwc=True)
-    Gs_syn_kwargs.randomize_noise = False
-    Gs_syn_kwargs.minibatch_size = minibatch_size
-
-    print('Generating W vectors...')
-    all_seeds = list(set(row_seeds + col_seeds))
-    all_z = np.stack([np.random.RandomState(seed).randn(*Gs.input_shape[1:]) for seed in all_seeds]) # [minibatch, component]
-    all_w = Gs.components.mapping.run(all_z, None) # [minibatch, layer, component]
-    all_w = w_avg + (all_w - w_avg) * truncation_psi # [minibatch, layer, component]
-    w_dict = {seed: w for seed, w in zip(all_seeds, list(all_w))} # [layer, component]
-
-    print('Generating images...')
-    all_images = Gs.components.synthesis.run(all_w, **Gs_syn_kwargs) # [minibatch, height, width, channel]
-    image_dict = {(seed, seed): image for seed, image in zip(all_seeds, list(all_images))}
-
-    print('Generating style-mixed images...')
-    for row_seed in row_seeds:
-        for col_seed in col_seeds:
-            w = w_dict[row_seed].copy()
-            w[col_styles] = w_dict[col_seed][col_styles]
-            image = Gs.components.synthesis.run(w[np.newaxis], **Gs_syn_kwargs)[0]
-            image_dict[(row_seed, col_seed)] = image
-
-    print('Saving images...')
-    for (row_seed, col_seed), image in image_dict.items():
-        PIL.Image.fromarray(image, 'RGB').save(dnnlib.make_run_dir_path('%d-%d.png' % (row_seed, col_seed)))
-
-    print('Saving image grid...')
-    _N, _C, H, W = Gs.output_shape
-    canvas = PIL.Image.new('RGB', (W * (len(col_seeds) + 1), H * (len(row_seeds) + 1)), 'black')
-    for row_idx, row_seed in enumerate([None] + row_seeds):
-        for col_idx, col_seed in enumerate([None] + col_seeds):
-            if row_seed is None and col_seed is None:
-                continue
-            key = (row_seed, col_seed)
-            if row_seed is None:
-                key = (col_seed, col_seed)
-            if col_seed is None:
-                key = (row_seed, row_seed)
-            canvas.paste(PIL.Image.fromarray(image_dict[key], 'RGB'), (W * col_idx, H * row_idx))
-    canvas.save(dnnlib.make_run_dir_path('grid.png'))
+   return 0
 
 #----------------------------------------------------------------------------
 
@@ -115,18 +65,11 @@ def _parse_num_range(s):
     vals = s.split(',')
     return [int(x) for x in vals]
 
-def _parse_hexstring(s):
-    '''Accept one or more hex strings as a comma separated  list'''
-    print(s)
-    vals = s.split(',')
-    
-    sarr= [int(x) for x in vals]
-    print(sarr)
-    return s
+
 
 def _chk0x(s):
     if s[1]=='x':
-        return s[2:]
+        s= s[2:]
     return s
 
    
@@ -134,8 +77,8 @@ def _chk0x(s):
 
 _examples = '''examples:
 
-  # Generate ffhq uncurated images (matches paper Figure 12)
-  python %(prog)s generate-images --network=gdrive:networks/stylegan2-ffhq-config-f.pkl --seeds=6600-6625 --truncation-psi=0.5
+  # Generate ffhq uncurated images ´
+  python %(prog)s generate-images --network=gdrive:networks/stylegan2-ffhq-config-f.pkl --seeds=0x1234567890,1234, --truncation-psi=1
 
 '''
 
@@ -154,7 +97,7 @@ Run 'python %(prog)s <subcommand> --help' for subcommand help.''',
 
     parser_generate_images = subparsers.add_parser('generate-images', help='Generate images')
     parser_generate_images.add_argument('--network', help='Network pickle filename', dest='network_pkl', default='stylegan2-ffhq-config-f.pkl')
-    parser_generate_images.add_argument('--seeds', type=str, help='Hex seed', dest='seed', default='0x1234567890')
+    parser_generate_images.add_argument('--seeds', type=str, help='Hex seed', dest='seeds', default='0x0000000001,0x1234567890,0x1234500000,0xFFFFFFFFFF')
     parser_generate_images.add_argument('--truncation-psi', type=float, help='Truncation psi (default: %(default)s)', default=0.5)
     parser_generate_images.add_argument('--result-dir', help='Root directory for run results (default: %(default)s)', default='results', metavar='DIR')
 

@@ -28,18 +28,36 @@ On Windows, the compilation requires Microsoft Visual Studio to be in `PATH`. We
 
 Pre-trained networks are stored as `*.pkl` files on the [StyleGAN2 Google Drive folder](https://drive.google.com/open?id=1QHc-yF5C3DChRwSdZKcx1w6K8JvSxQi7). Below, you can either reference them directly using the syntax `gdrive:networks/<filename>.pkl`, or download them manually and reference by filename.
 
-```.bash
-# Generate ffhq image from single address seed
-python3 run_generator.py generate-images --network=stylegan2-ffhq-config-f.pkl --seeds=6600-6625 
+In this case stylegan2-ffhq-config-f.pkl in the same folder is used by default
 
-# Generate ffhq image from single address seed, increased truncation
-python3 run_generator.py generate-images --network=stylegan2-ffhq-config-f.pkl --seeds=6600-6625 --truncation-psi=1 
+```.bash
+# Generate ffhq images from default address seeds
+python3 run_generator.py generate-images
+
+# Generate ffhq images from address hex seeds, increased truncation
+python3 run_generator.py generate-images --network=stylegan2-ffhq-config-f.pkl --seeds=0x1234,12345 --truncation-psi=1 
 
 ```
 
 The results are placed in `results/<RUNNING_ID>/*.png`. You can change the location with `--result-dir`. For example, `--result-dir=~/my-stylegan2-results`.
 
 You can import the networks in your own Python code using `pickle.load()`. For this to work, you need to include the `dnnlib` source directory in `PYTHONPATH` and create a default TensorFlow session by calling `dnnlib.tflib.init_tf()`. See [run_generator.py](./run_generator.py) and [pretrained_networks.py](./pretrained_networks.py) for examples.
+
+## Input
+- All inputs are interpreted as hex numbers: 0x01 == 01
+- The seeding algorithm works by splitting a long hex string in 8-char arrays and converting them into uint32. These uint are then passed on to np.random.RandomState()
+- Leading zeros are stripped for the seed and are kept for the image filename.
+
+## Output
+![Teaser image](./docs/4output.png)
+
+This is the output of:
+```.bash
+python3 run_generator.py generate-images
+
+```
+
+The default seeds used are '0x0000000001,0x1234567890,0x1234500000,0xFFFFFFFFFF'
 
 
 ## License
