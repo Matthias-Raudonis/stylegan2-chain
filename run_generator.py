@@ -16,8 +16,24 @@ import pretrained_networks
 
 #----------------------------------------------------------------------------
 
-def generate_images(network_pkl, seeds, truncation_psi):
+def generate_images(network_pkl, seed, truncation_psi):
+    
+    seed=_chk0x(seed)
+    print(seed)
     print('Loading networks from "%s"...' % network_pkl)
+    print('Generating image for seed %s  ...' % (seed))
+    
+    
+    #splitl = str(np.array_split(arange,8);
+    splitl = [seed[i:i+8] for i in range(0, len(seed), 8)]
+    print(splitl)
+    
+    
+     
+    iarr= [int(splitl[i], 16) for i in range(0, len(splitl))]
+    
+    
+    
     _G, _D, Gs = pretrained_networks.load_networks(network_pkl)
     noise_vars = [var for name, var in Gs.components.synthesis.vars.items() if name.startswith('noise')]
 
@@ -27,13 +43,15 @@ def generate_images(network_pkl, seeds, truncation_psi):
     if truncation_psi is not None:
         Gs_kwargs.truncation_psi = truncation_psi
 
-    for seed_idx, seed in enumerate(seeds):
-        print('Generating image for seed %d (%d/%d) ...' % (seed, seed_idx, len(seeds)))
-        rnd = np.random.RandomState(seed)
-        z = rnd.randn(1, *Gs.input_shape[1:]) # [minibatch, component]
-        tflib.set_vars({var: rnd.randn(*var.shape.as_list()) for var in noise_vars}) # [height, width]
-        images = Gs.run(z, None, **Gs_kwargs) # [minibatch, height, width, channel]
-        PIL.Image.fromarray(images[0], 'RGB').save(dnnlib.make_run_dir_path('seed%04d.png' % seed))
+
+    print('Generating image for seed  ...')
+    print(iarr)
+    
+    rnd = np.random.RandomState(iarr)
+    z = rnd.randn(1, *Gs.input_shape[1:]) # [minibatch, component]
+    tflib.set_vars({var: rnd.randn(*var.shape.as_list()) for var in noise_vars}) # [height, width]
+    images = Gs.run(z, None, **Gs_kwargs) # [minibatch, height, width, channel]
+    PIL.Image.fromarray(images[0], 'RGB').save(dnnlib.make_run_dir_path('0x%s.png' % seed))
 
 #----------------------------------------------------------------------------
 
@@ -97,6 +115,21 @@ def _parse_num_range(s):
     vals = s.split(',')
     return [int(x) for x in vals]
 
+def _parse_hexstring(s):
+    '''Accept one or more hex strings as a comma separated  list'''
+    print(s)
+    vals = s.split(',')
+    
+    sarr= [int(x) for x in vals]
+    print(sarr)
+    return s
+
+def _chk0x(s):
+    if s[1]=='x':
+        return s[2:]
+    return s
+
+   
 #----------------------------------------------------------------------------
 
 _examples = '''examples:
@@ -104,14 +137,6 @@ _examples = '''examples:
   # Generate ffhq uncurated images (matches paper Figure 12)
   python %(prog)s generate-images --network=gdrive:networks/stylegan2-ffhq-config-f.pkl --seeds=6600-6625 --truncation-psi=0.5
 
-  # Generate ffhq curated images (matches paper Figure 11)
-  python %(prog)s generate-images --network=gdrive:networks/stylegan2-ffhq-config-f.pkl --seeds=66,230,389,1518 --truncation-psi=1.0
-
-  # Generate uncurated car images (matches paper Figure 12)
-  python %(prog)s generate-images --network=gdrive:networks/stylegan2-car-config-f.pkl --seeds=6000-6025 --truncation-psi=0.5
-
-  # Generate style mixing example (matches style mixing video clip)
-  python %(prog)s style-mixing-example --network=gdrive:networks/stylegan2-ffhq-config-f.pkl --row-seeds=85,100,75,458,1500 --col-seeds=55,821,1789,293 --truncation-psi=1.0
 '''
 
 #----------------------------------------------------------------------------
@@ -128,8 +153,8 @@ Run 'python %(prog)s <subcommand> --help' for subcommand help.''',
     subparsers = parser.add_subparsers(help='Sub-commands', dest='command')
 
     parser_generate_images = subparsers.add_parser('generate-images', help='Generate images')
-    parser_generate_images.add_argument('--network', help='Network pickle filename', dest='network_pkl', required=True)
-    parser_generate_images.add_argument('--seeds', type=_parse_num_range, help='List of random seeds', required=True)
+    parser_generate_images.add_argument('--network', help='Network pickle filename', dest='network_pkl', default='stylegan2-ffhq-config-f.pkl')
+    parser_generate_images.add_argument('--seeds', type=str, help='Hex seed', dest='seed', default='0x1234567890')
     parser_generate_images.add_argument('--truncation-psi', type=float, help='Truncation psi (default: %(default)s)', default=0.5)
     parser_generate_images.add_argument('--result-dir', help='Root directory for run results (default: %(default)s)', default='results', metavar='DIR')
 

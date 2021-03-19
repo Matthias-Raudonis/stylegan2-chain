@@ -24,13 +24,16 @@ nvcc test_nvcc.cu -o test_nvcc -run
 
 On Windows, the compilation requires Microsoft Visual Studio to be in `PATH`. We recommend installing [Visual Studio Community Edition](https://visualstudio.microsoft.com/vs/) and adding into `PATH` using `"C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars64.bat"`.
 
-## Using pre-trained networks
+## Generating images with pre-trained networks
 
 Pre-trained networks are stored as `*.pkl` files on the [StyleGAN2 Google Drive folder](https://drive.google.com/open?id=1QHc-yF5C3DChRwSdZKcx1w6K8JvSxQi7). Below, you can either reference them directly using the syntax `gdrive:networks/<filename>.pkl`, or download them manually and reference by filename.
 
 ```.bash
 # Generate ffhq image from single address seed
-python3 run_generator.py generate-images --network=stylegan2-ffhq-config-f.pkl --seeds=6600-6625 --truncation-psi=0.5 
+python3 run_generator.py generate-images --network=stylegan2-ffhq-config-f.pkl --seeds=6600-6625 
+
+# Generate ffhq image from single address seed, increased truncation
+python3 run_generator.py generate-images --network=stylegan2-ffhq-config-f.pkl --seeds=6600-6625 --truncation-psi=1 
 
 ```
 
